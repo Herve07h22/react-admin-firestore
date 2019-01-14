@@ -11,37 +11,32 @@ import {
   ReferenceInput,
   ArrayField,
   SingleFieldList,
-  SelectInput
+  SelectInput,
+  ReferenceField,
+  DateField
 } from 'react-admin';
 
 export const InscriptionList = props => (
   <List title="List des inscriptions" {...props}>
     <Datagrid>
-      <TextField source="id" />
-      <ReferenceInput label="Compétition" source="competition" reference="competition">
-        <SelectInput optionText="Compétition" />
-      </ReferenceInput>
-      <ReferenceInput label="Ecurie" source="ecurie" reference="ecurie">
-        <SelectInput optionText="Ecurie" />
-      </ReferenceInput>
-      <ReferenceInput label="Catégorie" source="categorie" reference="categorie">
-        <SelectInput optionText="Catégorie" />
-      </ReferenceInput>
-      <ReferenceInput label="Concours" source="concours" reference="concours">
-        <SelectInput optionText="Concours" />
-      </ReferenceInput>
+      <ReferenceField label="Compétition" source="competition" reference="competition">
+          <TextField source="lieu" />
+      </ReferenceField>
       <TextField label="Cheval" source="cheval" />
       <TextField label="Longeur-euse" source="longe" />
-      <ArrayField label="Voltigeurs-euses" source="Noms">
-        <SingleFieldList>
-          <TextField source="Nom" />
-        </SingleFieldList>
-      </ArrayField>
+      <ReferenceField label="Catégorie" source="categorie" reference="categorie">
+          <TextField source="nom" />
+      </ReferenceField>
+      <ReferenceField label="Concours" source="concours" reference="concours">
+          <TextField source="nom" />
+      </ReferenceField>
+
       <EditButton />
     </Datagrid>
   </List>
 );
 
+/*
 export const InscriptionCreate = props => (
   <Create {...props}>
     <SimpleForm>
@@ -97,3 +92,4 @@ export const InscriptionEdit = props => (
     </SimpleForm>
   </Edit>
 );
+*/

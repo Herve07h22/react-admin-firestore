@@ -1,5 +1,5 @@
 import React from 'react';
-import { List, Edit, Create, Datagrid, TextField, EditButton, DisabledInput, SimpleForm, DateField } from 'react-admin';
+import { List, Edit, Create, Datagrid, TextField, EditButton, SimpleForm, DateField, TextInput, DateInput } from 'react-admin';
 
 export const CompetitionList = props => (
   <List title="List des compétitions" {...props}>
@@ -14,9 +14,8 @@ export const CompetitionList = props => (
 export const CompetitionEdit = props => (
   <Edit {...props}>
     <SimpleForm>
-      <DisabledInput source="id" />
-      <TextField source="lieu" />
-      <DateField source="date" />
+      <TextInput source="lieu" />
+      <DateInput source="date" />
     </SimpleForm>
   </Edit>
 );
@@ -24,8 +23,8 @@ export const CompetitionEdit = props => (
 export const CompetitionCreate = props => (
   <Create {...props}>
     <SimpleForm>
-      <TextField source="lieu" />
-      <DateField source="date" />
+      <TextInput source="lieu" />
+      <DateInput source="date" />
     </SimpleForm>
   </Create>
 );

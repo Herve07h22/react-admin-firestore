@@ -34,6 +34,20 @@ db.settings({
   timestampsInSnapshots: true
 });
 
+// Utility function to flatten firestore objects, since 'id' is not a field
+function getDataWithId(DocumentSnapshot) {
+    var dataWithId = {}
+    // console.log('getDataWithId Id=', DocumentSnapshot.id)
+    if (DocumentSnapshot) {
+        dataWithId =  {
+            id : DocumentSnapshot.id,
+            ...DocumentSnapshot.data()
+        }
+    }
+    // console.log(dataWithId);
+    return dataWithId
+}
+
 /**
  * Maps react-admin queries to my REST API
  *
@@ -43,35 +57,30 @@ db.settings({
  * @returns {Promise} the Promise for a data response
  */
 export const firestoreProvider = (type, resource, params) => {
-    
+    console.log(type, resource);
+    console.log(params);
     switch (type) {
         case GET_LIST: {
             const { page, perPage } = params.pagination;
             const { field, order } = params.sort;
-            
-            return db.collection(resource)
-                        .orderBy(field, order)
-                        .limit(perPage)
-                        .get()
+            // query all the docs from the first to page*perPage
+            var query = field === 'id' ? db.collection(resource).limit(page*perPage) : db.collection(resource).limit(perPage).orderBy(field, order.toLowerCase())
+            return query.get()
                         .then( firtsDocumentsSnapshots => {
-                            // Get the last visible document
+                            // slice the results 
                             var totalCount = firtsDocumentsSnapshots.docs.length;
                             var firstDocToDisplayCount = page === 1 ? 1 : Math.min( (page-1)*perPage , totalCount )
-                            var firstDocToDisplay = firtsDocumentsSnapshots.docs[firstDocToDisplayCount-1];
+                            var firstDocToDisplay = firtsDocumentsSnapshots.docs.slice(firstDocToDisplayCount-1);
 
-                            // Construct a new query starting at this document,
-                            return db.collection(resource)
-                                    .orderBy(field, order)
-                                    .startAt(firstDocToDisplay)
-                                    .limit(perPage)
-                                    .get()
-                                        .then( documentsSnapshots => {
-                                            return {
-                                                data: documentsSnapshots.docs.map( doc => doc.data()),
-                                                total: totalCount
-                                            }
-                                        });
-                            })
+                            console.log('totalCount : ',totalCount );
+                            console.log('firstDocToDisplayCount : ',firstDocToDisplayCount );
+
+                            return {
+                                data: firstDocToDisplay.map( doc => getDataWithId(doc) ),
+                                total: totalCount
+                            }
+
+                        })
         }
 
         case GET_ONE: {
@@ -80,7 +89,7 @@ export const firestoreProvider = (type, resource, params) => {
                         .get()
                         .then( doc => {
                             if (doc.exists) {
-                                return { data : doc.data() };
+                                return { data : getDataWithId(doc) };
                             } else {
                                 throw new Error({ message:'No such doc', status: 404});
                             }
@@ -93,58 +102,64 @@ export const firestoreProvider = (type, resource, params) => {
         case CREATE: {
             return db.collection(resource)
                     .add(params.data)
-                    .get()
-                    .then( DocumentSnapshot =>{ data : DocumentSnapshot.data()})
+                    .then( DocumentReference => 
+                        DocumentReference
+                        .get()
+                        .then( DocumentSnapshot => { return { data : getDataWithId(DocumentSnapshot)} })
+                    )
         }
 
         case UPDATE: {
             return db.collection(resource)
                         .doc(params.id)
                         .set(params.data)
-                        .get()
-                        .then( DocumentSnapshot => { data : DocumentSnapshot.data()})
+                        .then( () => { return { data : params.data } } )
         }
 
         case UPDATE_MANY: {
-            return params.ids.map( (id) => {
+            return params.ids.map( id => 
                 db.collection(resource)
                         .doc(id)
                         .set(params.data)
-                        .get()
-                        .then( DocumentSnapshot => DocumentSnapshot.id)
-            })
+                        .then( () => id )
+            )
 
         }
 
         case DELETE: {
-            var theDoc = db.collection(resource).doc(params.id);
-            return theDoc.get()
-                        .then ( DocumentSnapshot => 
-                            theDoc.delete().then( () => { return { data : DocumentSnapshot.data() } } )
-                        )
+            console.log('Delete record id', params.id)
+            return db.collection(resource)
+                        .doc(params.id)
+                        .delete()
+                        .then( () => { return { data :  params.previousData } } )
         }
 
         case DELETE_MANY: {
             return { 
-                data : params.id.map( id => {
+                data : params.ids.map( id => 
                                     db
                                     .collection(resource)
                                     .doc(id)
                                     .delete()
                                     .then( () => id )
-                })
+                )
             }
         }
         
         case GET_MANY: {
-            return { 
-                data : params.id.map( id => {
-                                    db.collection(resource)
-                                    .doc(id)
-                                    .get()
-                                    .then( DocumentSnapshot => DocumentSnapshot.data())
-                })
-            }
+            // Do not use FireStore Ref because react-admin will not be able to create or update
+            // Use a String field containing the ID instead
+
+            return Promise
+                    .all(params.ids.map( id => db.collection(resource).doc(id).get() ))
+                    .then(arrayOfResults => {
+                        console.log('arrayOfResults :',arrayOfResults)
+                        return {
+                            data : arrayOfResults.map( documentSnapshot => getDataWithId(documentSnapshot) ) 
+                        }
+                    
+                    });
+
         }
 
         case GET_MANY_REFERENCE: {
@@ -153,20 +168,22 @@ export const firestoreProvider = (type, resource, params) => {
             const { field, order } = params.sort;
             return db.collection(resource)
                     .where(target, "==", id)
-                    .orderBy(field, order)
+                    .orderBy(field, order.toLowerCase())
                     .get()
                     .then( QuerySnapshot =>
                         {
                             return {
-                                data : QuerySnapshot.docs.map( DocumentSnapshot => DocumentSnapshot.data() ),
+                                data : QuerySnapshot.docs.map( DocumentSnapshot => getDataWithId(DocumentSnapshot) ),
                                 total : QuerySnapshot.docs.length
                             }
                         }
                     );
 
         }
-        default:
+
+        default: {
             throw new Error(`Unsupported Data Provider request type ${type}`);
+        }
     }
 
 };
