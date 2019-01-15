@@ -12,6 +12,8 @@ import {
     GET_MANY_REFERENCE,
 } from 'react-admin';
 
+import { AUTH_LOGIN, AUTH_LOGOUT, AUTH_CHECK } from 'react-admin';
+
 // Firebase settings
 const firebase = require("firebase");
 // Required for side-effects
@@ -22,19 +24,27 @@ firebase.initializeApp({
     authDomain: 'voltige-afdbf.firebaseapp.com',
     databaseURL: 'https://voltige-afdbf.firebaseio.com',
     projectId: 'voltige-afdbf',
-    storageBucket: '',
+    storageBucket: 'gs://voltige-afdbf.appspot.com',
     messagingSenderId: '403976155357'
 });
   
 // Initialize Cloud Firestore through Firebase
 var db = firebase.firestore();
+var storage = firebase.storage();
+var storageRoot = storage.ref();
 
 // Disable deprecated features
 db.settings({
   timestampsInSnapshots: true
 });
 
-// Utility function to flatten firestore objects, since 'id' is not a field
+
+/**
+ * Utility function to flatten firestore objects, since 'id' is not a field in FireStore
+ *
+ * @param {DocumentSnapshot} DocumentSnapshot Firestore document snapshot
+ * @returns {Object} the DocumentSnapshot.data() with an additionnal "Id" attribute
+ */ 
 function getDataWithId(DocumentSnapshot) {
     var dataWithId = {}
     // console.log('getDataWithId Id=', DocumentSnapshot.id)
@@ -49,7 +59,56 @@ function getDataWithId(DocumentSnapshot) {
 }
 
 /**
- * Maps react-admin queries to my REST API
+ * Utility function to upload a file in a Firebase storage bucket
+ *
+ * @param {File} rawFile the file to upload
+ * @param {File} storageRef the storage reference 
+ * @returns {Promise}  the promise of the URL where the file can be download from the bucket
+ */ 
+async function uploadFileToBucket(rawFile, storageRef) {
+    console.log('Beginning upload');
+    return storageRef.put(rawFile)
+        .then( snapshot => {
+            console.log('Uploaded file !');
+            // Add url
+            return storageRef.getDownloadURL();
+        })
+        .catch( (error) => { 
+            console.log(error);
+            throw new Error( { message: error.message_ , status:401} ) 
+        });
+}
+
+/**
+ * Utility function to create or update a file in Firestore
+ *
+ * @param {String} resource resource name, will be used as a directory to prevent an awful mess in the bucket
+ * @param {File} rawFile the file to upload if it is not already there
+ * @param {Function} uploadFile the storage reference  
+ * @returns {Promise}  the promise of the URL where the file can be download from the bucket
+ */ 
+async function createOrUpdateFile(resource, rawFile, uploadFile) {
+    console.log("Beginning upload file to storage bucket for file :", rawFile.name);
+    var storageRef = storageRoot.child(resource + '/' + rawFile.name);
+    // Check if the file already exist (same name, same size)
+    // In this case, no need to upload
+    return storageRef.getMetadata()
+        .then( metadata => {
+            console.log(metadata)
+            if ( metadata && metadata.size === rawFile.size) {
+                console.log("file already exists");
+                return storageRef.getDownloadURL();
+            } else {
+                return uploadFile(rawFile, storageRef)
+            }  
+        })
+        .catch(
+            () => { console.log('File does not exist'); return uploadFile(rawFile, storageRef) }
+        );
+}
+
+/**
+ * Maps react-admin queries to Firebase
  *
  * @param {string} type Request type, e.g GET_LIST
  * @param {string} resource Resource name, e.g. "posts"
@@ -57,8 +116,6 @@ function getDataWithId(DocumentSnapshot) {
  * @returns {Promise} the Promise for a data response
  */
 export const firestoreProvider = (type, resource, params) => {
-    console.log(type, resource);
-    console.log(params);
     switch (type) {
         case GET_LIST: {
             const { page, perPage } = params.pagination;
@@ -71,10 +128,6 @@ export const firestoreProvider = (type, resource, params) => {
                             var totalCount = firtsDocumentsSnapshots.docs.length;
                             var firstDocToDisplayCount = page === 1 ? 1 : Math.min( (page-1)*perPage , totalCount )
                             var firstDocToDisplay = firtsDocumentsSnapshots.docs.slice(firstDocToDisplayCount-1);
-
-                            console.log('totalCount : ',totalCount );
-                            console.log('firstDocToDisplayCount : ',firstDocToDisplayCount );
-
                             return {
                                 data: firstDocToDisplay.map( doc => getDataWithId(doc) ),
                                 total: totalCount
@@ -99,24 +152,52 @@ export const firestoreProvider = (type, resource, params) => {
                         });
         }
             
+        case UPDATE:
         case CREATE: {
-            return db.collection(resource)
-                    .add(params.data)
-                    .then( DocumentReference => 
-                        DocumentReference
-                        .get()
-                        .then( DocumentSnapshot => { return { data : getDataWithId(DocumentSnapshot)} })
-                    )
-        }
+            // Check if there is a file to upload
+            var listOfFiles = Object.keys(params.data).filter( key => params.data[key].rawFile)
+            return Promise
+                    .all(
+                        listOfFiles.map( key => {
+                            // Upload file to the Storage bucket
+                            return createOrUpdateFile(resource, params.data[key].rawFile, uploadFileToBucket)
+                                    .then( downloadURL => {
+                                        return { key : key, downloadURL : downloadURL }
+                                    })
+                        }))
+                    .then(arrayOfResults => {
+                        arrayOfResults.map( (keyAndUrl) => {
+                            // Remove rawFile attr as it will raise an error when setting the data
+                            delete params.data[keyAndUrl.key].rawFile;
+                            // Set the url to get the file
+                            params.data[keyAndUrl.key].downloadURL = keyAndUrl.downloadURL;
+                            return params.data
+                        });
 
-        case UPDATE: {
-            return db.collection(resource)
-                        .doc(params.id)
-                        .set(params.data)
-                        .then( () => { return { data : params.data } } )
+                        if (type===CREATE) {
+                            console.log("Creating the data");
+                            return db.collection(resource)
+                                .add(params.data)
+                                .then( DocumentReference => 
+                                    DocumentReference
+                                    .get()
+                                    .then( DocumentSnapshot => { return { data : getDataWithId(DocumentSnapshot)} })
+                                )
+                        }
+
+                        if (type===UPDATE) {
+                            console.log("Updating the data");
+                            return db.collection(resource)
+                                .doc(params.id)
+                                .set(params.data)
+                                .then( () => { return { data : params.data } } )
+                        }
+                    });
         }
 
         case UPDATE_MANY: {
+            // Will crash if there is a File Input in the params
+            // TODO
             return params.ids.map( id => 
                 db.collection(resource)
                         .doc(id)
@@ -153,7 +234,6 @@ export const firestoreProvider = (type, resource, params) => {
             return Promise
                     .all(params.ids.map( id => db.collection(resource).doc(id).get() ))
                     .then(arrayOfResults => {
-                        console.log('arrayOfResults :',arrayOfResults)
                         return {
                             data : arrayOfResults.map( documentSnapshot => getDataWithId(documentSnapshot) ) 
                         }
@@ -188,3 +268,23 @@ export const firestoreProvider = (type, resource, params) => {
 
 };
 
+// Ultra simple authentication provider
+export const firebaseAuthProvider = (type, params) => {
+    if (type === AUTH_LOGIN) {
+        const { username, password } = params;
+        return firebase.auth()
+                    .signInWithEmailAndPassword(username, password)
+                    .catch( (error) => { throw new Error({ message:error.message, status: 401}) } )
+    }
+    
+    if (type === AUTH_LOGOUT) {
+        return firebase.auth().signOut()
+            .catch( (error) => { throw new Error({ message:error.message, status: 500}) } );
+    }
+
+    if (type === AUTH_CHECK) {
+        return firebase.auth().currentUser ? Promise.resolve() : Promise.reject();
+    }
+
+    return Promise.resolve();
+}

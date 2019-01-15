@@ -9,87 +9,101 @@ import {
   SimpleForm,
   FileField,
   ReferenceInput,
-  ArrayField,
-  SingleFieldList,
   SelectInput,
   ReferenceField,
-  DateField
+  DateField,
+  TextInput,
+  ArrayInput,
+  SimpleFormIterator,
+  FileInput
 } from 'react-admin';
 
 export const InscriptionList = props => (
   <List title="List des inscriptions" {...props}>
     <Datagrid>
-      <ReferenceField label="Compétition" source="competition" reference="competition">
-          <TextField source="lieu" />
+      <ReferenceField label="Date compétition" source="competition" reference="competition">
+          <DateField source="date" />
+      </ReferenceField>
+      <ReferenceField label="Ecurie" source="ecurie" reference="ecurie" linkType={false}>
+          <TextField source="nom" />
+      </ReferenceField>
+      <ReferenceField label="Catégorie" source="categorie" reference="categorie" linkType={false}>
+          <TextField source="nom" />
+      </ReferenceField>
+      <ReferenceField label="Concours" source="concours" reference="concours" linkType={false}>
+          <TextField source="nom" />
       </ReferenceField>
       <TextField label="Cheval" source="cheval" />
       <TextField label="Longeur-euse" source="longe" />
-      <ReferenceField label="Catégorie" source="categorie" reference="categorie">
-          <TextField source="nom" />
-      </ReferenceField>
-      <ReferenceField label="Concours" source="concours" reference="concours">
-          <TextField source="nom" />
-      </ReferenceField>
-
+      <FileField label="Entrée" source="MusiqueEntree.downloadURL" title="MusiqueEntree.nom" target="_blank"/>
+      <FileField label="Thème" source="MusiqueTheme.downloadURL" title="MusiqueTheme.nom" target="_blank"/>
       <EditButton />
     </Datagrid>
   </List>
 );
 
-/*
+
 export const InscriptionCreate = props => (
   <Create {...props}>
     <SimpleForm>
       <ReferenceInput label="Compétition" source="competition" reference="competition">
-        <SelectInput optionText="Compétition" />
+        <SelectInput optionText="date" />
       </ReferenceInput>
       <ReferenceInput label="Ecurie" source="ecurie" reference="ecurie">
-        <SelectInput optionText="Ecurie" />
+        <SelectInput optionText="nom" />
       </ReferenceInput>
-      <ReferenceInput label="Catégorie" source="categorie" reference="categorie">
-        <SelectInput optionText="Catégorie" />
+      <ReferenceInput label="Catégorie" source="categorie" reference="categorie" >
+        <SelectInput optionText="nom" />
       </ReferenceInput>
       <ReferenceInput label="Concours" source="concours" reference="concours">
-        <SelectInput optionText="Concours" />
+        <SelectInput optionText="nom" />
       </ReferenceInput>
-      <TextField label="Cheval" source="cheval" />
-      <TextField label="Longeur-euse" source="longe" />
-      <ArrayField label="Voltigeurs-euses" source="Noms">
-        <SingleFieldList>
-          <TextField source="Nom" />
-        </SingleFieldList>
-      </ArrayField>
-      <FileField source="MusiqueEntree" title="Musique entrée" />
-      <FileField source="MusiqueTheme" title="Musique du thème" />
+      <TextInput  label="Cheval" source="cheval" />
+      <TextInput  label="Longeur-euse" source="longe" />
+      <ArrayInput label="Voltigeurs-euses" source="participants">
+        <SimpleFormIterator>
+          <TextInput source="nom" />
+        </SimpleFormIterator>
+      </ArrayInput>
+      <FileInput source="MusiqueEntree" label="Musique entrée" accept="audio/*">
+          <FileField source="src" title="nom" />
+      </FileInput>
+      <FileInput source="MusiqueTheme" label="Musique du thème" accept="audio/*">
+          <FileField source="src" title="nom" />
+      </FileInput>
     </SimpleForm>
   </Create>
 );
+
 
 export const InscriptionEdit = props => (
   <Edit {...props}>
     <SimpleForm>
       <ReferenceInput label="Compétition" source="competition" reference="competition">
-        <SelectInput optionText="Compétition" />
+        <SelectInput optionText="date" />
       </ReferenceInput>
-      <ReferenceInput label="Ecurie" source="ecurie" reference="ecurie">
-        <SelectInput optionText="Ecurie" />
+      <ReferenceInput label="Ecurie" source="ecurie" reference="ecurie" >
+        <SelectInput optionText="nom" />
       </ReferenceInput>
-      <ReferenceInput label="Catégorie" source="categorie" reference="categorie">
-        <SelectInput optionText="Catégorie" />
+      <ReferenceInput label="Catégorie" source="categorie" reference="categorie" >
+        <SelectInput optionText="nom" />
       </ReferenceInput>
-      <ReferenceInput label="Concours" source="concours" reference="concours">
-        <SelectInput optionText="Concours" />
+      <ReferenceInput label="Concours" source="concours" reference="concours" >
+        <SelectInput optionText="nom" />
       </ReferenceInput>
-      <TextField label="Cheval" source="cheval" />
-      <TextField label="Longeur-euse" source="longe" />
-      <ArrayField label="Voltigeurs-euses" source="Noms">
-        <SingleFieldList>
-          <TextField source="Nom" />
-        </SingleFieldList>
-      </ArrayField>
-      <FileField source="MusiqueEntree" title="Musique entrée" />
-      <FileField source="MusiqueTheme" title="Musique du thème" />
+      <TextInput  label="Cheval" source="cheval" />
+      <TextInput  label="Longeur-euse" source="longe" />
+      <ArrayInput label="Voltigeurs-euses" source="participants">
+        <SimpleFormIterator>
+          <TextInput source="nom" />
+        </SimpleFormIterator>
+      </ArrayInput>
+      <FileInput source="MusiqueEntree" label="Musique entrée" accept="audio/*">
+          <FileField source="src" title="nom" />
+      </FileInput>
+      <FileInput source="MusiqueTheme" label="Musique du thème" accept="audio/*">
+          <FileField source="src" title="nom" />
+      </FileInput>
     </SimpleForm>
   </Edit>
 );
-*/
