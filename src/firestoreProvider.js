@@ -121,13 +121,13 @@ export const firestoreProvider = (type, resource, params) => {
             const { page, perPage } = params.pagination;
             const { field, order } = params.sort;
             // query all the docs from the first to page*perPage
-            var query = field === 'id' ? db.collection(resource).limit(page*perPage) : db.collection(resource).limit(perPage).orderBy(field, order.toLowerCase())
+            var query = field === 'id' ? db.collection(resource).limit(page*perPage) : db.collection(resource).limit(page*perPage).orderBy(field, order.toLowerCase());
             return query.get()
-                        .then( firtsDocumentsSnapshots => {
+                        .then( QuerySnapshot => {
                             // slice the results 
-                            var totalCount = firtsDocumentsSnapshots.docs.length;
+                            var totalCount = QuerySnapshot.docs.length;
                             var firstDocToDisplayCount = page === 1 ? 1 : Math.min( (page-1)*perPage , totalCount )
-                            var firstDocToDisplay = firtsDocumentsSnapshots.docs.slice(firstDocToDisplayCount-1);
+                            var firstDocToDisplay = QuerySnapshot.docs.slice(firstDocToDisplayCount-1);
                             return {
                                 data: firstDocToDisplay.map( doc => getDataWithId(doc) ),
                                 total: totalCount
