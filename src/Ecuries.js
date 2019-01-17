@@ -66,8 +66,8 @@ export const EcurieCreate = props => (
   <Create {...props}>
     <SimpleForm>
       <TextInput  label="Nom" source="nom" />
-      <TextInput  label="Adresse" source="adresse" />
-      <TextInput  label="Description" source="description" />
+      <TextInput label="Adresse" source="adresse" />
+      <LongTextInput  label="Description" source="description" />
       <FileInput source="photo" label="Photo de centre" accept="image/*">
           <FileField source="src" title="nom" />
       </FileInput>
@@ -80,7 +80,7 @@ export const EcurieEdit = props => (
     <SimpleForm>
     <TextInput  label="Nom" source="nom" />
       <TextInput  label="Adresse" source="adresse" />
-      <TextInput  label="Description" source="description" />
+      <LongTextInput  label="Description" source="description" />
       <FileInput source="photo" label="Photo de centre" accept="image/*">
           <FileField source="src" title="nom" />
       </FileInput>
