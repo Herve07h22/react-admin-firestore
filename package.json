@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "firebase": "^5.5.5",
-    "lodash": "^4.17.11",
+    "lodash": "^4.17.13",
     "prop-types": "^15.6.2",
     "react": "^16.7.0",
     "react-admin": "^2.6.1",
